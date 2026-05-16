@@ -390,12 +390,76 @@ function ShapeEditorPage() {
         {cursorInfo?.angleSnap != null && <span>snap: {cursorInfo.angleSnap}°</span>}
         <span>lines: {store.state.lines.length}</span>
         <span>{store.state.closed ? "closed" : "open"}</span>
-        <span className="ml-auto opacity-60">
-          Ctrl+Z undo · Ctrl+Shift+Z redo · Space pan · Wheel zoom
+        <span>
+          bbox: {stats.width.toFixed(1)}×{stats.height.toFixed(1)} · area{" "}
+          {stats.area.toFixed(1)}
         </span>
+        {issues.length === 0 ? (
+          <span className="text-emerald-300">✓ valid</span>
+        ) : (
+          <span className="text-amber-300">⚠ {issues.length} issue{issues.length > 1 ? "s" : ""}</span>
+        )}
+        <span className="ml-auto opacity-60">Press ? for shortcuts</span>
       </div>
 
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+
       <Toaster />
+    </div>
+  );
+}
+
+function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  const rows: [string, string][] = [
+    ["P", "Place mode"],
+    ["E", "Edit mode"],
+    ["Tab", "Toggle mode"],
+    ["C", "Close shape"],
+    ["H / V", "Mirror horizontal / vertical"],
+    ["[  /  ]", "Rotate −15° / +15°"],
+    ["B", "Toggle bounding box"],
+    ["F", "Fit shape to view"],
+    ["0", "Reset view"],
+    ["Wheel", "Zoom at cursor"],
+    ["Space + drag", "Pan (also middle-mouse)"],
+    ["Shift (while dragging vertex)", "Snap angle to 15°"],
+    ["Ctrl/⌘ + Z", "Undo"],
+    ["Ctrl/⌘ + Shift + Z", "Redo"],
+    ["Ctrl/⌘ + S", "Save JSON"],
+    ["Ctrl/⌘ + O", "Load JSON"],
+    ["Delete", "Delete selected line"],
+    ["Esc", "Deselect"],
+    ["?", "Toggle this dialog"],
+  ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[80vh] w-[460px] max-w-full overflow-y-auto rounded-lg border border-white/15 bg-[#0a2a52] p-5 text-sm shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
+          <button
+            onClick={onClose}
+            className="rounded bg-white/10 px-2 py-1 text-xs hover:bg-white/20"
+          >
+            Close
+          </button>
+        </div>
+        <table className="w-full text-xs">
+          <tbody>
+            {rows.map(([k, d]) => (
+              <tr key={k} className="border-t border-white/10">
+                <td className="py-1.5 pr-4 font-mono text-amber-200">{k}</td>
+                <td className="py-1.5 text-white/85">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
