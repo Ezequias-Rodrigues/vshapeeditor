@@ -20,10 +20,13 @@ type Props = {
   length: number;
   lineType: LineType;
   showBounds: boolean;
+  showIds: boolean;
   onCursor?: (info: { world: Point; angleSnap: number | null; zoom: number }) => void;
   fitTrigger: number;
   resetViewTrigger: number;
 };
+
+type MarkerRect = { id: string; x: number; y: number; w: number; h: number };
 
 const TYPE_DASH: Record<LineType, number[]> = {
   M: [],
