@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { BlueprintCanvas, type Mode } from "@/components/BlueprintCanvas";
@@ -10,7 +10,7 @@ import {
   downloadJSON,
   serializeShape,
 } from "@/lib/shape-io";
-import { boundingBox, shoelaceArea } from "@/lib/geometry";
+import { boundingBox, shoelaceArea, validateShape } from "@/lib/geometry";
 
 export const Route = createFileRoute("/")({ component: ShapeEditorPage });
 
