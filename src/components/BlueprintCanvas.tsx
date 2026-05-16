@@ -19,6 +19,7 @@ type Props = {
   mode: Mode;
   length: number;
   lineType: LineType;
+  showBounds: boolean;
   onCursor?: (info: { world: Point; angleSnap: number | null; zoom: number }) => void;
   fitTrigger: number;
   resetViewTrigger: number;
