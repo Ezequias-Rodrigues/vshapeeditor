@@ -373,7 +373,8 @@ export function BlueprintCanvas({
     }
 
     // Shape lines (with hover highlight)
-    drawLines(ctx, v, lines, selectedId, hoveredIdRef.current);
+    markersRef.current = [];
+    drawLines(ctx, v, lines, selectedId, hoveredIdRef.current, showIds, markersRef.current);
 
     // Vertices in edit mode
     if (mode === "edit") {
