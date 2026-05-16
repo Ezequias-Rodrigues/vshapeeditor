@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Line, LineType, Point, ShapeState } from "@/lib/shape-types";
 import {
   angleBetween,
+  boundingBox,
   pointSegDistance,
   recomputeChain,
   snapAngle,
