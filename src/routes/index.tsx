@@ -28,6 +28,7 @@ function ShapeEditorPage() {
   const [fitTrigger, setFitTrigger] = useState(0);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [showBounds, setShowBounds] = useState(true);
+  const [showIds, setShowIds] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
