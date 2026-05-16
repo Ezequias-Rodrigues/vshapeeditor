@@ -51,6 +51,14 @@ function ShapeEditorPage() {
     };
   }, [store.state]);
 
+  const issues = useMemo(
+    () => validateShape(store.state.lines, store.state.closed),
+    [store.state],
+  );
+
+  const onSaveRef = useRef<() => void>(() => {});
+  const onLoadClickRef = useRef<() => void>(() => {});
+
   const onSave = useCallback(() => {
     if (store.state.lines.length === 0) {
       toast.error("Nothing to save");
