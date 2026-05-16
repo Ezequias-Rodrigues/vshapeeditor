@@ -224,13 +224,11 @@ export function BlueprintCanvas({
             return;
           }
         }
-        // hit-test lines
-        for (let i = 0; i < lines.length; i++) {
-          const ln = lines[i];
-          if (pointSegDistance(world, ln.start, ln.end) <= lineHit) {
-            store.dispatch({ type: "select", id: ln.id });
-            return;
-          }
+        // hit-test lines: pick the NEAREST within tolerance
+        const nearest = findNearestLine(lines, world, lineHit);
+        if (nearest) {
+          store.dispatch({ type: "select", id: nearest.id });
+          return;
         }
         store.dispatch({ type: "select", id: null });
         return;
