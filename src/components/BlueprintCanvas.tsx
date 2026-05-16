@@ -467,6 +467,8 @@ function drawLines(
   lines: Line[],
   selectedId: string | null,
   hoveredId: string | null,
+  showIds: boolean,
+  markers: MarkerRect[],
 ) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -492,7 +494,11 @@ function drawLines(
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
-    // perpendicular red tick at midpoint carrying type + id
+    ctx.setLineDash([]);
+
+    if (!showIds) continue;
+
+    // perpendicular red tick at midpoint + readable label
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
     const dx = b.x - a.x;
@@ -500,19 +506,54 @@ function drawLines(
     const len = Math.hypot(dx, dy) || 1;
     const px = -dy / len;
     const py = dx / len;
-    const tick = 10;
-    ctx.setLineDash([]);
+    const tick = 9;
     ctx.lineWidth = 2;
     ctx.strokeStyle = "#ff3b3b";
     ctx.beginPath();
     ctx.moveTo(mx - px * tick, my - py * tick);
     ctx.lineTo(mx + px * tick, my + py * tick);
     ctx.stroke();
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+
+    const label = `${ln.type}·${ln.id}`;
+    ctx.font = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    const tw = ctx.measureText(label).width;
+    const padX = 6;
+    const padY = 3;
+    const boxW = tw + padX * 2;
+    const boxH = 16;
+    const offset = tick + 4;
+    const cx = mx + px * (offset + boxH / 2);
+    const cy = my + py * (offset + boxH / 2);
+    const bx = cx - boxW / 2;
+    const by = cy - boxH / 2;
+
+    // rounded background
+    const r = 4;
     ctx.fillStyle = "#ff3b3b";
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    ctx.lineTo(bx + boxW - r, by);
+    ctx.quadraticCurveTo(bx + boxW, by, bx + boxW, by + r);
+    ctx.lineTo(bx + boxW, by + boxH - r);
+    ctx.quadraticCurveTo(bx + boxW, by + boxH, bx + boxW - r, by + boxH);
+    ctx.lineTo(bx + r, by + boxH);
+    ctx.quadraticCurveTo(bx, by + boxH, bx, by + boxH - r);
+    ctx.lineTo(bx, by + r);
+    ctx.quadraticCurveTo(bx, by, bx + r, by);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    void padY;
+
+    ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${ln.type}·${ln.id}`, mx + px * (tick + 10), my + py * (tick + 10));
+    ctx.fillText(label, cx, cy + 0.5);
+
+    markers.push({ id: ln.id, x: bx, y: by, w: boxW, h: boxH });
   }
   ctx.setLineDash([]);
 }
