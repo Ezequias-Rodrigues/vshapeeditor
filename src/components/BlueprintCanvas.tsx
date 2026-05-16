@@ -274,6 +274,15 @@ export function BlueprintCanvas({
         // don't requestRedraw — store dispatch causes re-render
       }
 
+      // hover line in edit mode (no dispatch — pure visual)
+      if (mode === "edit" && !draggingRef.current) {
+        const lineHit = LINE_HIT_PX / viewRef.current.zoom;
+        const near = findNearestLine(store.state.lines, cursorRef.current, lineHit);
+        hoveredIdRef.current = near?.id ?? null;
+      } else {
+        hoveredIdRef.current = null;
+      }
+
       // ghost angle for status
       if (onCursor) {
         let snap: number | null = null;
