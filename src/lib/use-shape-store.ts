@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useReducer } from "react";
 import type { Line, LineType, Point, ShapeState } from "./shape-types";
 import { initialShape } from "./shape-types";
 import {
@@ -21,7 +21,8 @@ type Action =
   | { type: "deleteSelected" }
   | { type: "select"; id: string | null }
   | { type: "updateLine"; id: string; patch: Partial<Pick<Line, "length" | "angle" | "type">> }
-  | { type: "moveVertex"; index: number; to: Point; snap: boolean }
+  | { type: "moveVertex"; index: number; to: Point; snap: boolean; transient?: boolean }
+  | { type: "commitSnapshot"; snapshot: ShapeState }
   | { type: "closeShape"; lineType: LineType }
   | { type: "openShape" }
   | { type: "rotate"; deg: number }
@@ -60,7 +61,10 @@ function reduce(state: ShapeState, action: Action): ShapeState {
         start,
         end: { x: 0, y: 0 },
       };
-      const lines = recomputeChain([...state.lines, newLine], state.lines[0]?.start ?? { x: 0, y: 0 });
+      const lines = recomputeChain(
+        [...state.lines, newLine],
+        state.lines[0]?.start ?? { x: 0, y: 0 },
+      );
       return { ...state, lines };
     }
     case "deleteSelected": {
@@ -69,7 +73,12 @@ function reduce(state: ShapeState, action: Action): ShapeState {
       if (idx < 0) return state;
       const next = state.lines.filter((_, i) => i !== idx);
       const lines = recomputeChain(next, state.lines[0]?.start ?? { x: 0, y: 0 });
-      return { ...state, lines, selectedId: null, closed: lines.length < 2 ? false : state.closed };
+      return {
+        ...state,
+        lines,
+        selectedId: null,
+        closed: lines.length < 2 ? false : state.closed,
+      };
     }
     case "select":
       return { ...state, selectedId: action.id };
@@ -81,11 +90,9 @@ function reduce(state: ShapeState, action: Action): ShapeState {
       return { ...state, lines };
     }
     case "moveVertex": {
-      // vertex index 0 = start of line 0 (origin). 1..N = end of line i-1.
       const { index, to, snap } = action;
       if (state.lines.length === 0) return state;
       if (index === 0) {
-        // translate entire chain so first start = to
         const lines = recomputeChain(state.lines, to);
         return { ...state, lines };
       }
@@ -128,9 +135,10 @@ function reduce(state: ShapeState, action: Action): ShapeState {
       return initialShape;
     case "load":
       return action.state;
+    case "commitSnapshot":
     case "undo":
     case "redo":
-      return state; // handled in wrapper
+      return state;
   }
 }
 
@@ -140,39 +148,44 @@ export function useShapeStore() {
       if (action.type === "undo") {
         if (h.past.length === 0) return h;
         const prev = h.past[h.past.length - 1];
-        return { past: h.past.slice(0, -1), present: prev, future: [h.present, ...h.future] };
+        return {
+          past: h.past.slice(0, -1),
+          present: prev,
+          future: [h.present, ...h.future],
+        };
       }
       if (action.type === "redo") {
         if (h.future.length === 0) return h;
         const [next, ...rest] = h.future;
         return { past: [...h.past, h.present], present: next, future: rest };
       }
+      if (action.type === "commitSnapshot") {
+        // Insert the supplied snapshot into past (used for drag commits).
+        return {
+          past: [...h.past, action.snapshot].slice(-HISTORY_LIMIT),
+          present: h.present,
+          future: [],
+        };
+      }
       const next = reduce(h.present, action);
-      // Selection-only changes shouldn't pollute history
+      // No-history actions
       if (action.type === "select") return { ...h, present: next };
+      if (action.type === "moveVertex" && action.transient) {
+        return { ...h, present: next };
+      }
       return pushHistory(h, next);
     },
     { past: [], present: initialShape, future: [] },
   );
 
-  // For drag operations we want a single history entry on mouseup.
-  // We expose a "transient" applier that mutates present without pushing.
-  const transientRef = useRef(false);
-  const beginTransient = useCallback(() => {
-    transientRef.current = true;
-  }, []);
-  const endTransient = useCallback(() => {
-    transientRef.current = false;
-  }, []);
+  const noop = useCallback(() => {}, []);
+  void noop;
 
   return {
     state: hist.present,
     canUndo: hist.past.length > 0,
     canRedo: hist.future.length > 0,
     dispatch,
-    beginTransient,
-    endTransient,
-    transientRef,
   };
 }
 
