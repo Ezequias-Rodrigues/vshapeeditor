@@ -251,6 +251,7 @@ function ShapeEditorPage() {
             length={length}
             lineType={lineType}
             showBounds={showBounds}
+            showIds={showIds}
             onCursor={setCursorInfo}
             fitTrigger={fitTrigger}
             resetViewTrigger={resetTrigger}
