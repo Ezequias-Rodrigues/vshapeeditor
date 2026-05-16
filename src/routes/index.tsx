@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { BlueprintCanvas, type Mode } from "@/components/BlueprintCanvas";
@@ -10,7 +10,7 @@ import {
   downloadJSON,
   serializeShape,
 } from "@/lib/shape-io";
-import { boundingBox, shoelaceArea } from "@/lib/geometry";
+import { boundingBox, shoelaceArea, validateShape } from "@/lib/geometry";
 
 export const Route = createFileRoute("/")({ component: ShapeEditorPage });
 
@@ -27,6 +27,8 @@ function ShapeEditorPage() {
   } | null>(null);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const [showBounds, setShowBounds] = useState(true);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const selected = useMemo(
@@ -48,6 +50,14 @@ function ShapeEditorPage() {
       area: shoelaceArea(store.state.lines, store.state.closed),
     };
   }, [store.state]);
+
+  const issues = useMemo(
+    () => validateShape(store.state.lines, store.state.closed),
+    [store.state],
+  );
+
+  const onSaveRef = useRef<() => void>(() => {});
+  const onLoadClickRef = useRef<() => void>(() => {});
 
   const onSave = useCallback(() => {
     if (store.state.lines.length === 0) {
@@ -78,6 +88,79 @@ function ShapeEditorPage() {
     },
     [store],
   );
+
+  // keep refs fresh for keyboard handler
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    onLoadClickRef.current = onLoadClick;
+  }, [onSave, onLoadClick]);
+
+  // global keyboard shortcuts (canvas-level shortcuts live in BlueprintCanvas)
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null) => {
+      const e = el as HTMLElement | null;
+      return !!e && (e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.tagName === "SELECT" || e.isContentEditable);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (isEditable(e.target)) return;
+      // save / load with modifier
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        onSaveRef.current();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        onLoadClickRef.current();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      switch (e.key.toLowerCase()) {
+        case "p":
+          setMode("place");
+          break;
+        case "e":
+          setMode("edit");
+          break;
+        case "tab":
+          // handled below via e.key === 'Tab'
+          break;
+        case "c":
+          store.dispatch({ type: "closeShape", lineType });
+          break;
+        case "f":
+          setFitTrigger((n) => n + 1);
+          break;
+        case "0":
+          setResetTrigger((n) => n + 1);
+          break;
+        case "b":
+          setShowBounds((b) => !b);
+          break;
+        case "h":
+          store.dispatch({ type: "mirror", axis: "h" });
+          break;
+        case "v":
+          store.dispatch({ type: "mirror", axis: "v" });
+          break;
+        case "[":
+          store.dispatch({ type: "rotate", deg: -15 });
+          break;
+        case "]":
+          store.dispatch({ type: "rotate", deg: 15 });
+          break;
+        case "?":
+          setShortcutsOpen((o) => !o);
+          break;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setMode((m) => (m === "place" ? "edit" : "place"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lineType, store]);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0e3a6b] text-white">
@@ -138,6 +221,11 @@ function ShapeEditorPage() {
         >
           New
         </Btn>
+        <Sep />
+        <Toggle active={showBounds} onClick={() => setShowBounds((b) => !b)}>
+          Bounds
+        </Toggle>
+        <Btn onClick={() => setShortcutsOpen(true)}>Shortcuts</Btn>
         <input
           ref={fileInputRef}
           type="file"
@@ -155,6 +243,7 @@ function ShapeEditorPage() {
             mode={mode}
             length={length}
             lineType={lineType}
+            showBounds={showBounds}
             onCursor={setCursorInfo}
             fitTrigger={fitTrigger}
             resetViewTrigger={resetTrigger}
@@ -270,6 +359,21 @@ function ShapeEditorPage() {
               </div>
               <div>Area: {stats.area.toFixed(1)}</div>
             </div>
+
+            <div className="mt-4 border-t border-white/15 pt-3">
+              <div className="mb-1 font-semibold uppercase tracking-wide text-white/70">
+                Validation
+              </div>
+              {issues.length === 0 ? (
+                <div className="text-emerald-300">✓ Shape is valid</div>
+              ) : (
+                <ul className="space-y-1 text-amber-300">
+                  {issues.map((m, i) => (
+                    <li key={i}>• {m}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </aside>
         )}
       </div>
@@ -286,12 +390,76 @@ function ShapeEditorPage() {
         {cursorInfo?.angleSnap != null && <span>snap: {cursorInfo.angleSnap}°</span>}
         <span>lines: {store.state.lines.length}</span>
         <span>{store.state.closed ? "closed" : "open"}</span>
-        <span className="ml-auto opacity-60">
-          Ctrl+Z undo · Ctrl+Shift+Z redo · Space pan · Wheel zoom
+        <span>
+          bbox: {stats.width.toFixed(1)}×{stats.height.toFixed(1)} · area{" "}
+          {stats.area.toFixed(1)}
         </span>
+        {issues.length === 0 ? (
+          <span className="text-emerald-300">✓ valid</span>
+        ) : (
+          <span className="text-amber-300">⚠ {issues.length} issue{issues.length > 1 ? "s" : ""}</span>
+        )}
+        <span className="ml-auto opacity-60">Press ? for shortcuts</span>
       </div>
 
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+
       <Toaster />
+    </div>
+  );
+}
+
+function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  const rows: [string, string][] = [
+    ["P", "Place mode"],
+    ["E", "Edit mode"],
+    ["Tab", "Toggle mode"],
+    ["C", "Close shape"],
+    ["H / V", "Mirror horizontal / vertical"],
+    ["[  /  ]", "Rotate −15° / +15°"],
+    ["B", "Toggle bounding box"],
+    ["F", "Fit shape to view"],
+    ["0", "Reset view"],
+    ["Wheel", "Zoom at cursor"],
+    ["Space + drag", "Pan (also middle-mouse)"],
+    ["Shift (while dragging vertex)", "Snap angle to 15°"],
+    ["Ctrl/⌘ + Z", "Undo"],
+    ["Ctrl/⌘ + Shift + Z", "Redo"],
+    ["Ctrl/⌘ + S", "Save JSON"],
+    ["Ctrl/⌘ + O", "Load JSON"],
+    ["Delete", "Delete selected line"],
+    ["Esc", "Deselect"],
+    ["?", "Toggle this dialog"],
+  ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[80vh] w-[460px] max-w-full overflow-y-auto rounded-lg border border-white/15 bg-[#0a2a52] p-5 text-sm shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
+          <button
+            onClick={onClose}
+            className="rounded bg-white/10 px-2 py-1 text-xs hover:bg-white/20"
+          >
+            Close
+          </button>
+        </div>
+        <table className="w-full text-xs">
+          <tbody>
+            {rows.map(([k, d]) => (
+              <tr key={k} className="border-t border-white/10">
+                <td className="py-1.5 pr-4 font-mono text-amber-200">{k}</td>
+                <td className="py-1.5 text-white/85">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

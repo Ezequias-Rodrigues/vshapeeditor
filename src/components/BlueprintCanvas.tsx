@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Line, LineType, Point, ShapeState } from "@/lib/shape-types";
 import {
   angleBetween,
+  boundingBox,
   pointSegDistance,
   recomputeChain,
   snapAngle,
@@ -18,6 +19,7 @@ type Props = {
   mode: Mode;
   length: number;
   lineType: LineType;
+  showBounds: boolean;
   onCursor?: (info: { world: Point; angleSnap: number | null; zoom: number }) => void;
   fitTrigger: number;
   resetViewTrigger: number;
@@ -41,6 +43,7 @@ export function BlueprintCanvas({
   mode,
   length,
   lineType,
+  showBounds,
   onCursor,
   fitTrigger,
   resetViewTrigger,
@@ -54,6 +57,7 @@ export function BlueprintCanvas({
   const shiftRef = useRef(false);
   const panningRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const draggingRef = useRef<{ index: number; preDrag: ShapeState } | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const [, force] = useState(0);
@@ -220,13 +224,11 @@ export function BlueprintCanvas({
             return;
           }
         }
-        // hit-test lines
-        for (let i = 0; i < lines.length; i++) {
-          const ln = lines[i];
-          if (pointSegDistance(world, ln.start, ln.end) <= lineHit) {
-            store.dispatch({ type: "select", id: ln.id });
-            return;
-          }
+        // hit-test lines: pick the NEAREST within tolerance
+        const nearest = findNearestLine(lines, world, lineHit);
+        if (nearest) {
+          store.dispatch({ type: "select", id: nearest.id });
+          return;
         }
         store.dispatch({ type: "select", id: null });
         return;
@@ -270,6 +272,15 @@ export function BlueprintCanvas({
           transient: true,
         });
         // don't requestRedraw — store dispatch causes re-render
+      }
+
+      // hover line in edit mode (no dispatch — pure visual)
+      if (mode === "edit" && !draggingRef.current) {
+        const lineHit = LINE_HIT_PX / viewRef.current.zoom;
+        const near = findNearestLine(store.state.lines, cursorRef.current, lineHit);
+        hoveredIdRef.current = near?.id ?? null;
+      } else {
+        hoveredIdRef.current = null;
       }
 
       // ghost angle for status
@@ -337,7 +348,19 @@ export function BlueprintCanvas({
 
     // Shape lines
     const { lines, selectedId, closed } = store.state;
-    drawLines(ctx, v, lines, selectedId);
+
+    // Fill interior when closed
+    if (closed && lines.length >= 3) {
+      drawClosedFill(ctx, v, lines);
+    }
+
+    // Bounding box overlay
+    if (showBounds && lines.length > 0) {
+      drawBoundingBox(ctx, v, lines);
+    }
+
+    // Shape lines (with hover highlight)
+    drawLines(ctx, v, lines, selectedId, hoveredIdRef.current);
 
     // Vertices in edit mode
     if (mode === "edit") {
@@ -348,11 +371,6 @@ export function BlueprintCanvas({
     if (mode === "place" && !closed && cursorRef.current) {
       drawGhost(ctx, v, lines, cursorRef.current, length, lineType);
     }
-
-    // closed indicator
-    if (closed && lines.length >= 3) {
-      // already drawn as last segment
-    }
   });
 
   const cursor =
@@ -361,7 +379,9 @@ export function BlueprintCanvas({
       : spaceRef.current
         ? "grab"
         : mode === "edit"
-          ? "default"
+          ? hoveredIdRef.current
+            ? "pointer"
+            : "default"
           : "crosshair";
 
   return (
@@ -427,16 +447,33 @@ function worldToScreen(p: Point, v: View): Point {
   return { x: p.x * v.zoom + v.panX, y: p.y * v.zoom + v.panY };
 }
 
-function drawLines(ctx: CanvasRenderingContext2D, v: View, lines: Line[], selectedId: string | null) {
+function drawLines(
+  ctx: CanvasRenderingContext2D,
+  v: View,
+  lines: Line[],
+  selectedId: string | null,
+  hoveredId: string | null,
+) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const ln of lines) {
     const a = worldToScreen(ln.start, v);
     const b = worldToScreen(ln.end, v);
     const isSel = ln.id === selectedId;
+    const isHov = !isSel && ln.id === hoveredId;
+    // hover/selection underglow
+    if (isSel || isHov) {
+      ctx.setLineDash([]);
+      ctx.lineWidth = isSel ? 9 : 7;
+      ctx.strokeStyle = isSel ? "rgba(255,215,106,0.35)" : "rgba(123,224,255,0.35)";
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
     ctx.setLineDash(TYPE_DASH[ln.type]);
-    ctx.lineWidth = isSel ? 4 : 2.5;
-    ctx.strokeStyle = isSel ? "#ffd76a" : "#ffffff";
+    ctx.lineWidth = isSel ? 3.5 : isHov ? 3 : 2.5;
+    ctx.strokeStyle = isSel ? "#ffd76a" : isHov ? "#d8f4ff" : "#ffffff";
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -452,6 +489,53 @@ function drawLines(ctx: CanvasRenderingContext2D, v: View, lines: Line[], select
     ctx.fillText(`${ln.type}·${ln.id}`, mx, my - 10);
   }
   ctx.setLineDash([]);
+}
+
+function drawClosedFill(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) {
+  ctx.beginPath();
+  const first = worldToScreen(lines[0].start, v);
+  ctx.moveTo(first.x, first.y);
+  for (const ln of lines) {
+    const e = worldToScreen(ln.end, v);
+    ctx.lineTo(e.x, e.y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.fill("evenodd");
+}
+
+function drawBoundingBox(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) {
+  const bb = boundingBox(lines);
+  const a = worldToScreen(bb.min, v);
+  const b = worldToScreen(bb.max, v);
+  ctx.save();
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,215,106,0.7)";
+  ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  // size label
+  ctx.setLineDash([]);
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillStyle = "rgba(255,215,106,0.95)";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  const w = (bb.max.x - bb.min.x).toFixed(1);
+  const h = (bb.max.y - bb.min.y).toFixed(1);
+  ctx.fillText(`${w} × ${h}`, a.x, a.y - 4);
+  ctx.restore();
+}
+
+function findNearestLine(lines: Line[], world: Point, tolerance: number): Line | null {
+  let best: Line | null = null;
+  let bestD = tolerance;
+  for (const ln of lines) {
+    const d = pointSegDistance(world, ln.start, ln.end);
+    if (d <= bestD) {
+      bestD = d;
+      best = ln;
+    }
+  }
+  return best;
 }
 
 function drawVertices(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) {
