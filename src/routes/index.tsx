@@ -138,6 +138,9 @@ function ShapeEditorPage() {
         case "b":
           setShowBounds((b) => !b);
           break;
+        case "i":
+          setShowIds((b) => !b);
+          break;
         case "h":
           store.dispatch({ type: "mirror", axis: "h" });
           break;
