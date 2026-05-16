@@ -28,6 +28,7 @@ function ShapeEditorPage() {
   const [fitTrigger, setFitTrigger] = useState(0);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [showBounds, setShowBounds] = useState(true);
+  const [showIds, setShowIds] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -137,6 +138,9 @@ function ShapeEditorPage() {
         case "b":
           setShowBounds((b) => !b);
           break;
+        case "i":
+          setShowIds((b) => !b);
+          break;
         case "h":
           store.dispatch({ type: "mirror", axis: "h" });
           break;
@@ -225,6 +229,9 @@ function ShapeEditorPage() {
         <Toggle active={showBounds} onClick={() => setShowBounds((b) => !b)}>
           Bounds
         </Toggle>
+        <Toggle active={showIds} onClick={() => setShowIds((b) => !b)}>
+          IDs
+        </Toggle>
         <Btn onClick={() => setShortcutsOpen(true)}>Shortcuts</Btn>
         <input
           ref={fileInputRef}
@@ -244,6 +251,7 @@ function ShapeEditorPage() {
             length={length}
             lineType={lineType}
             showBounds={showBounds}
+            showIds={showIds}
             onCursor={setCursorInfo}
             fitTrigger={fitTrigger}
             resetViewTrigger={resetTrigger}

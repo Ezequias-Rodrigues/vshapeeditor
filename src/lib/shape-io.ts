@@ -12,6 +12,7 @@ const LineSchema = z.object({
   angle: z.number().finite(),
   start: PointSchema,
   end: PointSchema,
+  middle: PointSchema.optional(),
 });
 
 const FileSchema = z.object({
@@ -51,6 +52,7 @@ export function serializeShape(state: ShapeState): ShapeFile {
       angle: ln.angle,
       start: ln.start,
       end: ln.end,
+      middle: { x: (ln.start.x + ln.end.x) / 2, y: (ln.start.y + ln.end.y) / 2 },
     })),
   };
 }
