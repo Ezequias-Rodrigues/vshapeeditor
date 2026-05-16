@@ -89,6 +89,79 @@ function ShapeEditorPage() {
     [store],
   );
 
+  // keep refs fresh for keyboard handler
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    onLoadClickRef.current = onLoadClick;
+  }, [onSave, onLoadClick]);
+
+  // global keyboard shortcuts (canvas-level shortcuts live in BlueprintCanvas)
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null) => {
+      const e = el as HTMLElement | null;
+      return !!e && (e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.tagName === "SELECT" || e.isContentEditable);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (isEditable(e.target)) return;
+      // save / load with modifier
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        onSaveRef.current();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        onLoadClickRef.current();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      switch (e.key.toLowerCase()) {
+        case "p":
+          setMode("place");
+          break;
+        case "e":
+          setMode("edit");
+          break;
+        case "tab":
+          // handled below via e.key === 'Tab'
+          break;
+        case "c":
+          store.dispatch({ type: "closeShape", lineType });
+          break;
+        case "f":
+          setFitTrigger((n) => n + 1);
+          break;
+        case "0":
+          setResetTrigger((n) => n + 1);
+          break;
+        case "b":
+          setShowBounds((b) => !b);
+          break;
+        case "h":
+          store.dispatch({ type: "mirror", axis: "h" });
+          break;
+        case "v":
+          store.dispatch({ type: "mirror", axis: "v" });
+          break;
+        case "[":
+          store.dispatch({ type: "rotate", deg: -15 });
+          break;
+        case "]":
+          store.dispatch({ type: "rotate", deg: 15 });
+          break;
+        case "?":
+          setShortcutsOpen((o) => !o);
+          break;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setMode((m) => (m === "place" ? "edit" : "place"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lineType, store]);
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0e3a6b] text-white">
       {/* Top toolbar */}
