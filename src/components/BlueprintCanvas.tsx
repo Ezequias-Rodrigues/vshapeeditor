@@ -348,7 +348,19 @@ export function BlueprintCanvas({
 
     // Shape lines
     const { lines, selectedId, closed } = store.state;
-    drawLines(ctx, v, lines, selectedId);
+
+    // Fill interior when closed
+    if (closed && lines.length >= 3) {
+      drawClosedFill(ctx, v, lines);
+    }
+
+    // Bounding box overlay
+    if (showBounds && lines.length > 0) {
+      drawBoundingBox(ctx, v, lines);
+    }
+
+    // Shape lines (with hover highlight)
+    drawLines(ctx, v, lines, selectedId, hoveredIdRef.current);
 
     // Vertices in edit mode
     if (mode === "edit") {
@@ -358,11 +370,6 @@ export function BlueprintCanvas({
     // Ghost line in place mode
     if (mode === "place" && !closed && cursorRef.current) {
       drawGhost(ctx, v, lines, cursorRef.current, length, lineType);
-    }
-
-    // closed indicator
-    if (closed && lines.length >= 3) {
-      // already drawn as last segment
     }
   });
 
