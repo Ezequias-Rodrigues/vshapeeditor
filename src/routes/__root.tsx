@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Blueprint Shape Editor" },
+      { title: "VShape Editor" },
       { name: "description", content: "Draw concave shapes from snap-angle line segments and export them as JSON." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Blueprint Shape Editor" },
+      { property: "og:title", content: "VShape Editor" },
       { property: "og:description", content: "Draw concave shapes from snap-angle line segments and export them as JSON." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "VShape Editor" },
+      { name: "twitter:description", content: "Draw concave shapes from snap-angle line segments and export them as JSON." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/056861fd-2738-4e6c-9e25-b2204edaccb2" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/056861fd-2738-4e6c-9e25-b2204edaccb2" },
     ],
     links: [
       {
