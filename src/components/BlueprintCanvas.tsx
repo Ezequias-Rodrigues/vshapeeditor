@@ -47,6 +47,7 @@ export function BlueprintCanvas({
   length,
   lineType,
   showBounds,
+  showIds,
   onCursor,
   fitTrigger,
   resetViewTrigger,
