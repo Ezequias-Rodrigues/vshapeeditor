@@ -119,3 +119,54 @@ export function mirrorLines(lines: Line[], axis: "h" | "v"): Line[] {
   const newOrigin = axis === "h" ? { x: -origin.x, y: origin.y } : { x: origin.x, y: -origin.y };
   return recomputeChain(newLines, newOrigin);
 }
+
+/** Robust segment intersection test (returns true if open segments cross strictly). */
+export function segmentsIntersect(
+  a1: Point, a2: Point, b1: Point, b2: Point,
+): boolean {
+  const d = (p: Point, q: Point, r: Point) =>
+    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const d1 = d(b1, b2, a1);
+  const d2 = d(b1, b2, a2);
+  const d3 = d(a1, a2, b1);
+  const d4 = d(a1, a2, b2);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  return false;
+}
+
+/** Validate a (possibly closed) chain of lines. Returns list of issues. */
+export function validateShape(lines: Line[], closed: boolean): string[] {
+  const issues: string[] = [];
+  if (lines.length === 0) return issues;
+  for (let i = 0; i < lines.length; i++) {
+    if (!(lines[i].length > 0)) issues.push(`Line ${lines[i].id} has zero length`);
+  }
+  // chain continuity (defensive: recomputeChain enforces this, but check anyway)
+  for (let i = 1; i < lines.length; i++) {
+    const prev = lines[i - 1].end;
+    const cur = lines[i].start;
+    if (Math.hypot(prev.x - cur.x, prev.y - cur.y) > 1e-3) {
+      issues.push(`Chain break before line ${lines[i].id}`);
+    }
+  }
+  // self-intersection: pairs of non-adjacent segments
+  const n = lines.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      // skip adjacent (share endpoint); when closed, also skip last vs first
+      if (closed && i === 0 && j === n - 1) continue;
+      if (segmentsIntersect(lines[i].start, lines[i].end, lines[j].start, lines[j].end)) {
+        issues.push(`Lines ${lines[i].id} and ${lines[j].id} cross`);
+      }
+    }
+  }
+  if (closed && lines.length >= 3) {
+    const first = lines[0].start;
+    const last = lines[lines.length - 1].end;
+    if (Math.hypot(first.x - last.x, first.y - last.y) > 1e-3) {
+      issues.push("Shape marked closed but last vertex doesn't meet first");
+    }
+  }
+  return issues;
+}
