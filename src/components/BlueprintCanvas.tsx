@@ -57,6 +57,7 @@ export function BlueprintCanvas({
   const shiftRef = useRef(false);
   const panningRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const draggingRef = useRef<{ index: number; preDrag: ShapeState } | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const [, force] = useState(0);
