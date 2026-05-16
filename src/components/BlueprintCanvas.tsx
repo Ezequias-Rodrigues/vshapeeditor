@@ -63,6 +63,7 @@ export function BlueprintCanvas({
   const draggingRef = useRef<{ index: number; preDrag: ShapeState } | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
+  const markersRef = useRef<MarkerRect[]>([]);
 
   const [, force] = useState(0);
   const requestRedraw = useCallback(() => {
