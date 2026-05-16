@@ -229,6 +229,9 @@ function ShapeEditorPage() {
         <Toggle active={showBounds} onClick={() => setShowBounds((b) => !b)}>
           Bounds
         </Toggle>
+        <Toggle active={showIds} onClick={() => setShowIds((b) => !b)}>
+          IDs
+        </Toggle>
         <Btn onClick={() => setShortcutsOpen(true)}>Shortcuts</Btn>
         <input
           ref={fileInputRef}
