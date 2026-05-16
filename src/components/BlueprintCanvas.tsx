@@ -26,7 +26,7 @@ type Props = {
   resetViewTrigger: number;
 };
 
-type MarkerRect = { id: string; x: number; y: number; w: number; h: number };
+type MarkerRect = { id: string; X: number; Y: number; w: number; h: number };
 
 const TYPE_DASH: Record<LineType, number[]> = {
   M: [],
@@ -59,7 +59,9 @@ export function BlueprintCanvas({
   const cursorRef = useRef<Point | null>(null);
   const spaceRef = useRef(false);
   const shiftRef = useRef(false);
-  const panningRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+  const panningRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
+    null,
+  );
   const draggingRef = useRef<{ index: number; preDrag: ShapeState } | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -111,12 +113,15 @@ export function BlueprintCanvas({
     const { w, h } = sizeRef.current;
     if (!w || lines.length === 0) return;
     const pts = vertices(lines);
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const p of pts) {
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y > maxY) maxY = p.y;
+      if (p.X < minX) minX = p.X;
+      if (p.Y < minY) minY = p.Y;
+      if (p.X > maxX) maxX = p.X;
+      if (p.Y > maxY) maxY = p.Y;
     }
     const pad = 60;
     const sw = Math.max(1, maxX - minX);
@@ -136,7 +141,13 @@ export function BlueprintCanvas({
   useEffect(() => {
     const isEditable = (el: EventTarget | null) => {
       const e = el as HTMLElement | null;
-      return !!e && (e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.tagName === "SELECT" || e.isContentEditable);
+      return (
+        !!e &&
+        (e.tagName === "INPUT" ||
+          e.tagName === "TEXTAREA" ||
+          e.tagName === "SELECT" ||
+          e.isContentEditable)
+      );
     };
     const onDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !isEditable(e.target)) {
@@ -174,7 +185,7 @@ export function BlueprintCanvas({
 
   const screenToWorld = useCallback((sx: number, sy: number): Point => {
     const v = viewRef.current;
-    return { x: (sx - v.panX) / v.zoom, y: (sy - v.panY) / v.zoom };
+    return { X: (sx - v.panX) / v.zoom, Y: (sy - v.panY) / v.zoom };
   }, []);
 
   const onWheel = useCallback(
@@ -215,7 +226,7 @@ export function BlueprintCanvas({
 
       // ID marker hit-test (screen space) — works in any mode
       for (const m of markersRef.current) {
-        if (sx >= m.x && sx <= m.x + m.w && sy >= m.y && sy <= m.y + m.h) {
+        if (sx >= m.X && sx <= m.X + m.w && sy >= m.Y && sy <= m.Y + m.h) {
           store.dispatch({ type: "select", id: m.id });
           return;
         }
@@ -232,7 +243,7 @@ export function BlueprintCanvas({
         const verts = vertices(lines);
         for (let i = 0; i < verts.length; i++) {
           const p = verts[i];
-          if (Math.hypot(p.x - world.x, p.y - world.y) <= vertHit) {
+          if (Math.hypot(p.X - world.X, p.Y - world.Y) <= vertHit) {
             draggingRef.current = { index: i, preDrag: store.state };
             return;
           }
@@ -240,7 +251,7 @@ export function BlueprintCanvas({
         // hit-test lines: pick the NEAREST within tolerance
         const nearest = findNearestLine(lines, world, lineHit);
         if (nearest) {
-          store.dispatch({ type: "select", id: nearest.id });
+          store.dispatch({ type: "select", id: nearest.Id });
           return;
         }
         store.dispatch({ type: "select", id: null });
@@ -249,8 +260,7 @@ export function BlueprintCanvas({
 
       // place mode: commit ghost line
       if (store.state.closed) return;
-      const start =
-        lines.length === 0 ? { x: 0, y: 0 } : lines[lines.length - 1].end;
+      const start = lines.length === 0 ? { X: 0, Y: 0 } : lines[lines.length - 1].End;
       const ang = snapAngle(angleBetween(start, world));
       store.dispatch({ type: "addLine", length, angle: ang, lineType });
     },
@@ -291,7 +301,7 @@ export function BlueprintCanvas({
       if (mode === "edit" && !draggingRef.current) {
         const lineHit = LINE_HIT_PX / viewRef.current.zoom;
         const near = findNearestLine(store.state.lines, cursorRef.current, lineHit);
-        hoveredIdRef.current = near?.id ?? null;
+        hoveredIdRef.current = near?.Id ?? null;
       } else {
         hoveredIdRef.current = null;
       }
@@ -302,8 +312,8 @@ export function BlueprintCanvas({
         if (mode === "place" && !store.state.closed && cursorRef.current) {
           const start =
             store.state.lines.length === 0
-              ? { x: 0, y: 0 }
-              : store.state.lines[store.state.lines.length - 1].end;
+              ? { X: 0, Y: 0 }
+              : store.state.lines[store.state.lines.length - 1].End;
           snap = snapAngle(angleBetween(start, cursorRef.current));
         }
         onCursor({ world: cursorRef.current, angleSnap: snap, zoom: viewRef.current.zoom });
@@ -323,7 +333,7 @@ export function BlueprintCanvas({
       if (draggingRef.current) {
         const { preDrag } = draggingRef.current;
         draggingRef.current = null;
-        // commit one history entry: the pre-drag state
+        // commit one history entrY: the pre-drag state
         if (preDrag !== store.state) {
           store.dispatch({ type: "commitSnapshot", snapshot: preDrag });
         }
@@ -387,16 +397,15 @@ export function BlueprintCanvas({
     }
   });
 
-  const cursor =
-    panningRef.current
-      ? "grabbing"
-      : spaceRef.current
-        ? "grab"
-        : mode === "edit"
-          ? hoveredIdRef.current
-            ? "pointer"
-            : "default"
-          : "crosshair";
+  const cursor = panningRef.current
+    ? "grabbing"
+    : spaceRef.current
+      ? "grab"
+      : mode === "edit"
+        ? hoveredIdRef.current
+          ? "pointer"
+          : "default"
+        : "crosshair";
 
   return (
     <div ref={wrapRef} className="absolute inset-0 overflow-hidden">
@@ -418,9 +427,9 @@ export function BlueprintCanvas({
 
 function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number, v: View) {
   const step = 32; // world units
-  const startX = Math.floor((-v.panX) / v.zoom / step) * step;
+  const startX = Math.floor(-v.panX / v.zoom / step) * step;
   const endX = Math.ceil((w - v.panX) / v.zoom / step) * step;
-  const startY = Math.floor((-v.panY) / v.zoom / step) * step;
+  const startY = Math.floor(-v.panY / v.zoom / step) * step;
   const endY = Math.ceil((h - v.panY) / v.zoom / step) * step;
 
   ctx.lineWidth = 1;
@@ -458,7 +467,7 @@ function drawOriginMark(ctx: CanvasRenderingContext2D, v: View) {
 }
 
 function worldToScreen(p: Point, v: View): Point {
-  return { x: p.x * v.zoom + v.panX, y: p.y * v.zoom + v.panY };
+  return { X: p.X * v.zoom + v.panX, Y: p.Y * v.zoom + v.panY };
 }
 
 function drawLines(
@@ -473,36 +482,36 @@ function drawLines(
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const ln of lines) {
-    const a = worldToScreen(ln.start, v);
-    const b = worldToScreen(ln.end, v);
-    const isSel = ln.id === selectedId;
-    const isHov = !isSel && ln.id === hoveredId;
+    const a = worldToScreen(ln.Start, v);
+    const b = worldToScreen(ln.End, v);
+    const isSel = ln.Id === selectedId;
+    const isHov = !isSel && ln.Id === hoveredId;
     // hover/selection underglow
     if (isSel || isHov) {
       ctx.setLineDash([]);
       ctx.lineWidth = isSel ? 9 : 7;
       ctx.strokeStyle = isSel ? "rgba(255,215,106,0.35)" : "rgba(123,224,255,0.35)";
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(a.X, a.Y);
+      ctx.lineTo(b.X, b.Y);
       ctx.stroke();
     }
-    ctx.setLineDash(TYPE_DASH[ln.type]);
+    ctx.setLineDash(TYPE_DASH[ln.Type]);
     ctx.lineWidth = isSel ? 3.5 : isHov ? 3 : 2.5;
     ctx.strokeStyle = isSel ? "#ffd76a" : isHov ? "#d8f4ff" : "#ffffff";
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    ctx.moveTo(a.X, a.Y);
+    ctx.lineTo(b.X, b.Y);
     ctx.stroke();
     ctx.setLineDash([]);
 
     if (!showIds) continue;
 
     // perpendicular red tick at midpoint + readable label
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
+    const mx = (a.X + b.X) / 2;
+    const my = (a.Y + b.Y) / 2;
+    const dx = b.X - a.X;
+    const dy = b.Y - a.Y;
     const len = Math.hypot(dx, dy) || 1;
     const px = -dy / len;
     const py = dx / len;
@@ -514,7 +523,7 @@ function drawLines(
     ctx.lineTo(mx + px * tick, my + py * tick);
     ctx.stroke();
 
-    const label = `${ln.type}·${ln.id}`;
+    const label = `${ln.Type}·${ln.Id}`;
     ctx.font = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
     const tw = ctx.measureText(label).width;
     const padX = 6;
@@ -553,18 +562,18 @@ function drawLines(
     ctx.textBaseline = "middle";
     ctx.fillText(label, cx, cy + 0.5);
 
-    markers.push({ id: ln.id, x: bx, y: by, w: boxW, h: boxH });
+    markers.push({ id: ln.Id, X: bx, Y: by, w: boxW, h: boxH });
   }
   ctx.setLineDash([]);
 }
 
 function drawClosedFill(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) {
   ctx.beginPath();
-  const first = worldToScreen(lines[0].start, v);
-  ctx.moveTo(first.x, first.y);
+  const first = worldToScreen(lines[0].Start, v);
+  ctx.moveTo(first.X, first.Y);
   for (const ln of lines) {
-    const e = worldToScreen(ln.end, v);
-    ctx.lineTo(e.x, e.y);
+    const e = worldToScreen(ln.End, v);
+    ctx.lineTo(e.X, e.Y);
   }
   ctx.closePath();
   ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -579,16 +588,16 @@ function drawBoundingBox(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) 
   ctx.setLineDash([4, 4]);
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(255,215,106,0.7)";
-  ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  ctx.strokeRect(a.X, a.Y, b.X - a.X, b.Y - a.Y);
   // size label
   ctx.setLineDash([]);
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillStyle = "rgba(255,215,106,0.95)";
   ctx.textAlign = "left";
   ctx.textBaseline = "bottom";
-  const w = (bb.max.x - bb.min.x).toFixed(1);
-  const h = (bb.max.y - bb.min.y).toFixed(1);
-  ctx.fillText(`${w} × ${h}`, a.x, a.y - 4);
+  const w = (bb.max.X - bb.min.X).toFixed(1);
+  const h = (bb.max.Y - bb.min.Y).toFixed(1);
+  ctx.fillText(`${w} × ${h}`, a.X, a.Y - 4);
   ctx.restore();
 }
 
@@ -596,7 +605,7 @@ function findNearestLine(lines: Line[], world: Point, tolerance: number): Line |
   let best: Line | null = null;
   let bestD = tolerance;
   for (const ln of lines) {
-    const d = pointSegDistance(world, ln.start, ln.end);
+    const d = pointSegDistance(world, ln.Start, ln.End);
     if (d <= bestD) {
       bestD = d;
       best = ln;
@@ -610,7 +619,7 @@ function drawVertices(ctx: CanvasRenderingContext2D, v: View, lines: Line[]) {
   for (let i = 0; i < verts.length; i++) {
     const p = worldToScreen(verts[i], v);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.arc(p.X, p.Y, 5, 0, Math.PI * 2);
     ctx.fillStyle = i === 0 ? "#ffd76a" : "#7be0ff";
     ctx.fill();
     ctx.lineWidth = 1.5;
@@ -627,23 +636,23 @@ function drawGhost(
   length: number,
   type: LineType,
 ) {
-  const start = lines.length === 0 ? { x: 0, y: 0 } : lines[lines.length - 1].end;
+  const start = lines.length === 0 ? { X: 0, Y: 0 } : lines[lines.length - 1].End;
   const ang = snapAngle(angleBetween(start, cursor));
   const rad = (ang * Math.PI) / 180;
-  const end = { x: start.x + length * Math.cos(rad), y: start.y + length * Math.sin(rad) };
+  const end = { X: start.X + length * Math.cos(rad), Y: start.Y + length * Math.sin(rad) };
   const a = worldToScreen(start, v);
   const b = worldToScreen(end, v);
   ctx.setLineDash([6, 6]);
   ctx.strokeStyle = "rgba(255,255,255,0.7)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
+  ctx.moveTo(a.X, a.Y);
+  ctx.lineTo(b.X, b.Y);
   ctx.stroke();
   ctx.setLineDash([]);
   // endpoint marker
   ctx.beginPath();
-  ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+  ctx.arc(b.X, b.Y, 4, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.fill();
   // angle/length label
@@ -651,7 +660,7 @@ function drawGhost(
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillText(`${type} · ${length.toFixed(0)}px · ${ang}°`, b.x + 8, b.y + 8);
+  ctx.fillText(`${type} · ${length.toFixed(0)}px · ${ang}°`, b.X + 8, b.Y + 8);
 }
 
 // keep import to avoid tree-shake noise

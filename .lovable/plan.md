@@ -14,6 +14,7 @@ A single-page app on `/` for building one shape per project out of connected lin
 ## Core behavior
 
 **Canvas**
+
 - Full-viewport HTML `<canvas>`. World origin (0,0) at shape start; rendered with a view transform (zoom + pan).
 - **Pan**: middle-mouse drag, or `Space + left-drag`.
 - **Zoom**: mouse wheel, zooming toward the cursor. Min 0.1×, max 10×. `0` key resets view, `F` fits shape to viewport.
@@ -21,6 +22,7 @@ A single-page app on `/` for building one shape per project out of connected lin
 - Coordinates stored in **pixels, Y-down**, relative to the shape's own center on export.
 
 **Placement mode (default)**
+
 - Toolbar: **Line length** (numeric, remembered) and **Line type** (M/N/O/P/Q dropdown).
 - Ghost line previews from the current end-point toward the cursor:
   - Length = length field value.
@@ -29,6 +31,7 @@ A single-page app on `/` for building one shape per project out of connected lin
 - First line starts at (0,0). **Close shape** button adds a final segment from current end back to the first vertex.
 
 **Edit mode**
+
 - Click a line to select it. Sidebar shows `id`, `length`, `angle`, `type`, start/end.
 - Editable numerically: `length`, `angle` (free, no snap in editor), `type`.
 - **Vertex dragging**: each vertex shows a handle; drag to reposition. Dragging updates the two adjacent lines' length and angle (and propagates start-points down the chain). Hold `Shift` while dragging to snap the affected angle(s) to 15°.
@@ -36,14 +39,17 @@ A single-page app on `/` for building one shape per project out of connected lin
 - Changing one line propagates down the chain (subsequent lines keep their own length/angle, so the tail shifts). Documented in the UI.
 
 **Undo / Redo**
+
 - History stack of shape states. Buttons + `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`. Vertex drags commit one history entry on mouse-up.
 
 **Transforms (mutate stored data)**
+
 - Rotate left 90°, rotate right 90°, rotate by custom degrees.
 - Mirror horizontal, mirror vertical.
 - Each rewrites every line's angle and recomputes start/end points so the saved file reflects the transform.
 
 **IDs**
+
 - 4-char uppercase hex (`0000`–`FFFF`), assigned on creation, unique per shape, preserved across edits/transforms/drags.
 
 ## File format (`.json`)
@@ -64,7 +70,7 @@ A single-page app on `/` for building one shape per project out of connected lin
       "length": 120,
       "angle": 0,
       "start": { "x": 0, "y": 0 },
-      "end":   { "x": 120, "y": 0 }
+      "end": { "x": 120, "y": 0 }
     }
   ]
 }

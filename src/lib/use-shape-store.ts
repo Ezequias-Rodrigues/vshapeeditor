@@ -20,7 +20,7 @@ type Action =
   | { type: "addLine"; length: number; angle: number; lineType: LineType }
   | { type: "deleteSelected" }
   | { type: "select"; id: string | null }
-  | { type: "updateLine"; id: string; patch: Partial<Pick<Line, "length" | "angle" | "type">> }
+  | { type: "updateLine"; id: string; patch: Partial<Pick<Line, "Length" | "Angle" | "Type">> }
   | { type: "moveVertex"; index: number; to: Point; snap: boolean; transient?: boolean }
   | { type: "commitSnapshot"; snapshot: ShapeState }
   | { type: "closeShape"; lineType: LineType }
@@ -41,7 +41,7 @@ function pushHistory(h: HistoryState, next: ShapeState): HistoryState {
 }
 
 function usedIds(s: ShapeState): Set<string> {
-  return new Set(s.lines.map((l) => l.id));
+  return new Set(s.lines.map((l) => l.Id));
 }
 
 function reduce(state: ShapeState, action: Action): ShapeState {
@@ -49,30 +49,28 @@ function reduce(state: ShapeState, action: Action): ShapeState {
     case "addLine": {
       if (state.closed) return state;
       const start =
-        state.lines.length === 0
-          ? { x: 0, y: 0 }
-          : state.lines[state.lines.length - 1].end;
+        state.lines.length === 0 ? { X: 0, Y: 0 } : state.lines[state.lines.length - 1].End;
       const id = nextHexId(usedIds(state));
       const newLine: Line = {
-        id,
-        type: action.lineType,
-        length: action.length,
-        angle: action.angle,
-        start,
-        end: { x: 0, y: 0 },
+        Id: id,
+        Type: action.lineType,
+        Length: action.length,
+        Angle: action.angle,
+        Start: start,
+        End: { X: 0, Y: 0 },
       };
       const lines = recomputeChain(
         [...state.lines, newLine],
-        state.lines[0]?.start ?? { x: 0, y: 0 },
+        state.lines[0]?.Start ?? { X: 0, Y: 0 },
       );
       return { ...state, lines };
     }
     case "deleteSelected": {
       if (!state.selectedId) return state;
-      const idx = state.lines.findIndex((l) => l.id === state.selectedId);
+      const idx = state.lines.findIndex((l) => l.Id === state.selectedId);
       if (idx < 0) return state;
       const next = state.lines.filter((_, i) => i !== idx);
-      const lines = recomputeChain(next, state.lines[0]?.start ?? { x: 0, y: 0 });
+      const lines = recomputeChain(next, state.lines[0]?.Start ?? { X: 0, Y: 0 });
       return {
         ...state,
         lines,
@@ -84,8 +82,8 @@ function reduce(state: ShapeState, action: Action): ShapeState {
       return { ...state, selectedId: action.id };
     case "updateLine": {
       const lines = recomputeChain(
-        state.lines.map((l) => (l.id === action.id ? { ...l, ...action.patch } : l)),
-        state.lines[0]?.start ?? { x: 0, y: 0 },
+        state.lines.map((l) => (l.Id === action.id ? { ...l, ...action.patch } : l)),
+        state.lines[0]?.Start ?? { X: 0, Y: 0 },
       );
       return { ...state, lines };
     }
@@ -98,30 +96,30 @@ function reduce(state: ShapeState, action: Action): ShapeState {
       }
       const lineIdx = index - 1;
       const line = state.lines[lineIdx];
-      const newLength = distance(line.start, to);
-      let newAngle = angleBetween(line.start, to);
+      const newLength = distance(line.Start, to);
+      let newAngle = angleBetween(line.Start, to);
       if (snap) newAngle = Math.round(newAngle / 15) * 15;
       const updated = state.lines.map((l, i) =>
-        i === lineIdx ? { ...l, length: newLength, angle: newAngle } : l,
+        i === lineIdx ? { ...l, Length: newLength, Angle: newAngle } : l,
       );
-      const lines = recomputeChain(updated, state.lines[0]?.start ?? { x: 0, y: 0 });
+      const lines = recomputeChain(updated, state.lines[0]?.Start ?? { X: 0, Y: 0 });
       return { ...state, lines };
     }
     case "closeShape": {
       if (state.closed || state.lines.length < 2) return state;
-      const last = state.lines[state.lines.length - 1].end;
-      const first = state.lines[0].start;
+      const last = state.lines[state.lines.length - 1].End;
+      const first = state.lines[0].Start;
       const length = distance(last, first);
       if (length < 1e-3) return { ...state, closed: true };
       const angle = angleBetween(last, first);
       const id = nextHexId(usedIds(state));
       const closing: Line = {
-        id,
-        type: action.lineType,
-        length,
-        angle,
-        start: last,
-        end: first,
+        Id: id,
+        Type: action.lineType,
+        Length: length,
+        Angle: angle,
+        Start: last,
+        End: first,
       };
       return { ...state, lines: [...state.lines, closing], closed: true };
     }
@@ -178,7 +176,7 @@ export function useShapeStore() {
     { past: [], present: initialShape, future: [] },
   );
 
-  const noop = useCallback(() => {}, []);
+  const noop = useCallback(() => { }, []);
   void noop;
 
   return {

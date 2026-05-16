@@ -5,11 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { BlueprintCanvas, type Mode } from "@/components/BlueprintCanvas";
 import { LINE_TYPES, type LineType, type Point } from "@/lib/shape-types";
 import { useShapeStore } from "@/lib/use-shape-store";
-import {
-  deserializeShape,
-  downloadJSON,
-  serializeShape,
-} from "@/lib/shape-io";
+import { deserializeShape, downloadJSON, serializeShape } from "@/lib/shape-io";
 import { boundingBox, shoelaceArea, validateShape } from "@/lib/geometry";
 
 export const Route = createFileRoute("/")({ component: ShapeEditorPage });
@@ -33,16 +29,16 @@ function ShapeEditorPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const selected = useMemo(
-    () => store.state.lines.find((l) => l.id === store.state.selectedId) ?? null,
+    () => store.state.lines.find((l) => l.Id === store.state.selectedId) ?? null,
     [store.state],
   );
 
   const stats = useMemo(() => {
     const bb = boundingBox(store.state.lines);
-    const w = bb.max.x - bb.min.x;
-    const h = bb.max.y - bb.min.y;
-    const cx = (bb.min.x + bb.max.x) / 2;
-    const cy = (bb.min.y + bb.max.y) / 2;
+    const w = bb.max.X - bb.min.X;
+    const h = bb.max.Y - bb.min.Y;
+    const cx = (bb.min.X + bb.max.X) / 2;
+    const cy = (bb.min.Y + bb.max.Y) / 2;
     return {
       width: w,
       height: h,
@@ -52,13 +48,10 @@ function ShapeEditorPage() {
     };
   }, [store.state]);
 
-  const issues = useMemo(
-    () => validateShape(store.state.lines, store.state.closed),
-    [store.state],
-  );
+  const issues = useMemo(() => validateShape(store.state.lines, store.state.closed), [store.state]);
 
-  const onSaveRef = useRef<() => void>(() => {});
-  const onLoadClickRef = useRef<() => void>(() => {});
+  const onSaveRef = useRef<() => void>(() => { });
+  const onLoadClickRef = useRef<() => void>(() => { });
 
   const onSave = useCallback(() => {
     if (store.state.lines.length === 0) {
@@ -100,7 +93,13 @@ function ShapeEditorPage() {
   useEffect(() => {
     const isEditable = (el: EventTarget | null) => {
       const e = el as HTMLElement | null;
-      return !!e && (e.tagName === "INPUT" || e.tagName === "TEXTAREA" || e.tagName === "SELECT" || e.isContentEditable);
+      return (
+        !!e &&
+        (e.tagName === "INPUT" ||
+          e.tagName === "TEXTAREA" ||
+          e.tagName === "SELECT" ||
+          e.isContentEditable)
+      );
     };
     const onKey = (e: KeyboardEvent) => {
       if (isEditable(e.target)) return;
@@ -183,11 +182,15 @@ function ShapeEditorPage() {
           <span className="opacity-60">px</span>
         </Group>
         <Group label="Type">
-          <Select value={lineType} onChange={(v) => setLineType(v as LineType)} options={LINE_TYPES} />
+          <Select
+            value={lineType}
+            onChange={(v) => setLineType(v as LineType)}
+            options={LINE_TYPES}
+          />
         </Group>
         <Btn
           onClick={() => store.dispatch({ type: "closeShape", lineType })}
-          disabled={store.state.closed || store.state.lines.length < 2}
+          disabled={!!store.state.closed || !!(store.state.lines.length < 2)}
         >
           Close shape
         </Btn>
@@ -268,14 +271,14 @@ function ShapeEditorPage() {
             {mode === "place" ? (
               <>
                 <div className="font-semibold">Place mode</div>
-                Move cursor → angle snaps to 15°. <b>Click</b> to place a line.
-                Scroll = zoom · Space/Middle-drag = pan.
+                Move cursor → angle snaps to 15°. <b>Click</b> to place a line. Scroll = zoom ·
+                Space/Middle-drag = pan.
               </>
             ) : (
               <>
                 <div className="font-semibold">Edit mode</div>
-                Click a line to select. Drag any vertex to reshape (Shift = snap
-                15°). Delete key removes selected line.
+                Click a line to select. Drag any vertex to reshape (Shift = snap 15°). Delete key
+                removes selected line.
               </>
             )}
           </div>
@@ -293,16 +296,16 @@ function ShapeEditorPage() {
             ) : (
               <div className="space-y-3">
                 <Field label="ID">
-                  <code className="rounded bg-white/10 px-2 py-1">{selected.id}</code>
+                  <code className="rounded bg-white/10 px-2 py-1">{selected.Id}</code>
                 </Field>
                 <Field label="Type">
                   <Select
-                    value={selected.type}
+                    value={selected.Type}
                     onChange={(v) =>
                       store.dispatch({
                         type: "updateLine",
-                        id: selected.id,
-                        patch: { type: v as LineType },
+                        id: selected.Id,
+                        patch: { Type: v as LineType },
                       })
                     }
                     options={LINE_TYPES}
@@ -310,12 +313,12 @@ function ShapeEditorPage() {
                 </Field>
                 <Field label="Length (px)">
                   <NumInput
-                    value={Number(selected.length.toFixed(3))}
+                    value={Number(selected.Length.toFixed(3))}
                     onChange={(v) =>
                       store.dispatch({
                         type: "updateLine",
-                        id: selected.id,
-                        patch: { length: Math.max(0, v) },
+                        id: selected.Id,
+                        patch: { Length: Math.max(0, v) },
                       })
                     }
                     step={1}
@@ -324,12 +327,12 @@ function ShapeEditorPage() {
                 </Field>
                 <Field label="Angle (°)">
                   <NumInput
-                    value={Number(selected.angle.toFixed(3))}
+                    value={Number(selected.Angle.toFixed(3))}
                     onChange={(v) =>
                       store.dispatch({
                         type: "updateLine",
-                        id: selected.id,
-                        patch: { angle: v },
+                        id: selected.Id,
+                        patch: { Angle: v },
                       })
                     }
                     step={1}
@@ -338,12 +341,12 @@ function ShapeEditorPage() {
                 </Field>
                 <Field label="Start">
                   <code className="text-white/70">
-                    {selected.start.x.toFixed(1)}, {selected.start.y.toFixed(1)}
+                    {selected.Start.X.toFixed(1)}, {selected.Start.Y.toFixed(1)}
                   </code>
                 </Field>
                 <Field label="End">
                   <code className="text-white/70">
-                    {selected.end.x.toFixed(1)}, {selected.end.y.toFixed(1)}
+                    {selected.End.X.toFixed(1)}, {selected.End.Y.toFixed(1)}
                   </code>
                 </Field>
                 <button
@@ -390,22 +393,21 @@ function ShapeEditorPage() {
       <div className="flex items-center gap-4 border-t border-white/15 bg-[#0a2a52] px-3 py-1 font-mono text-[11px] text-white/80">
         <span>
           cursor:{" "}
-          {cursorInfo
-            ? `${cursorInfo.world.x.toFixed(1)}, ${cursorInfo.world.y.toFixed(1)}`
-            : "—"}
+          {cursorInfo ? `${cursorInfo.world.X.toFixed(1)}, ${cursorInfo.world.Y.toFixed(1)}` : "—"}
         </span>
         <span>zoom: {((cursorInfo?.zoom ?? 1) * 100).toFixed(0)}%</span>
         {cursorInfo?.angleSnap != null && <span>snap: {cursorInfo.angleSnap}°</span>}
         <span>lines: {store.state.lines.length}</span>
         <span>{store.state.closed ? "closed" : "open"}</span>
         <span>
-          bbox: {stats.width.toFixed(1)}×{stats.height.toFixed(1)} · area{" "}
-          {stats.area.toFixed(1)}
+          bbox: {stats.width.toFixed(1)}×{stats.height.toFixed(1)} · area {stats.area.toFixed(1)}
         </span>
         {issues.length === 0 ? (
           <span className="text-emerald-300">✓ valid</span>
         ) : (
-          <span className="text-amber-300">⚠ {issues.length} issue{issues.length > 1 ? "s" : ""}</span>
+          <span className="text-amber-300">
+            ⚠ {issues.length} issue{issues.length > 1 ? "s" : ""}
+          </span>
         )}
         <span className="ml-auto opacity-60">Press ? for shortcuts</span>
       </div>
@@ -499,7 +501,7 @@ function Btn({
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || undefined}
       className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
@@ -519,9 +521,8 @@ function Toggle({
   return (
     <button
       onClick={onClick}
-      className={`rounded px-2 py-1 ${
-        active ? "bg-amber-300 text-[#0a2a52]" : "bg-white/10 hover:bg-white/20"
-      }`}
+      className={`rounded px-2 py-1 ${active ? "bg-amber-300 text-[#0a2a52]" : "bg-white/10 hover:bg-white/20"
+        }`}
     >
       {children}
     </button>
@@ -584,9 +585,7 @@ function Select({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] uppercase tracking-wide text-white/60">
-        {label}
-      </span>
+      <span className="mb-1 block text-[10px] uppercase tracking-wide text-white/60">{label}</span>
       {children}
     </label>
   );
