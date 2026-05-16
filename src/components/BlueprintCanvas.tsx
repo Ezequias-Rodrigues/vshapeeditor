@@ -379,7 +379,9 @@ export function BlueprintCanvas({
       : spaceRef.current
         ? "grab"
         : mode === "edit"
-          ? "default"
+          ? hoveredIdRef.current
+            ? "pointer"
+            : "default"
           : "crosshair";
 
   return (
