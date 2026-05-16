@@ -359,6 +359,21 @@ function ShapeEditorPage() {
               </div>
               <div>Area: {stats.area.toFixed(1)}</div>
             </div>
+
+            <div className="mt-4 border-t border-white/15 pt-3">
+              <div className="mb-1 font-semibold uppercase tracking-wide text-white/70">
+                Validation
+              </div>
+              {issues.length === 0 ? (
+                <div className="text-emerald-300">✓ Shape is valid</div>
+              ) : (
+                <ul className="space-y-1 text-amber-300">
+                  {issues.map((m, i) => (
+                    <li key={i}>• {m}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </aside>
         )}
       </div>
