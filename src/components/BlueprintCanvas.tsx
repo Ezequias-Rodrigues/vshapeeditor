@@ -478,15 +478,27 @@ function drawLines(
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
-    // type label at midpoint
+    // perpendicular red tick at midpoint carrying type + id
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len;
+    const py = dx / len;
+    const tick = 10;
     ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#ff3b3b";
+    ctx.beginPath();
+    ctx.moveTo(mx - px * tick, my - py * tick);
+    ctx.lineTo(mx + px * tick, my + py * tick);
+    ctx.stroke();
     ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillStyle = isSel ? "#ffd76a" : "rgba(255,255,255,0.85)";
+    ctx.fillStyle = "#ff3b3b";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${ln.type}·${ln.id}`, mx, my - 10);
+    ctx.fillText(`${ln.type}·${ln.id}`, mx + px * (tick + 10), my + py * (tick + 10));
   }
   ctx.setLineDash([]);
 }

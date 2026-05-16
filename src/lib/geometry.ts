@@ -35,12 +35,6 @@ export function recomputeChain(lines: Line[], origin: Point = { x: 0, y: 0 }): L
 }
 
 export function nextHexId(used: Set<string>): string {
-  for (let i = 0; i < 1000; i++) {
-    const n = Math.floor(Math.random() * 0x10000);
-    const id = n.toString(16).toUpperCase().padStart(4, "0");
-    if (!used.has(id)) return id;
-  }
-  // fallback: scan
   for (let n = 0; n < 0x10000; n++) {
     const id = n.toString(16).toUpperCase().padStart(4, "0");
     if (!used.has(id)) return id;
