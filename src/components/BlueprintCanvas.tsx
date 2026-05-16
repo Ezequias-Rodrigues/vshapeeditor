@@ -508,7 +508,7 @@ function drawLines(
     const py = dx / len;
     const tick = 9;
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "#ff3b3b";
+    ctx.strokeStyle = "#FF773b";
     ctx.beginPath();
     ctx.moveTo(mx - px * tick, my - py * tick);
     ctx.lineTo(mx + px * tick, my + py * tick);
@@ -529,7 +529,7 @@ function drawLines(
 
     // rounded background
     const r = 4;
-    ctx.fillStyle = "#ff3b3b";
+    ctx.fillStyle = "#aa3b3b";
     ctx.strokeStyle = "rgba(0,0,0,0.55)";
     ctx.lineWidth = 1;
     ctx.beginPath();

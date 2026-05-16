@@ -32,10 +32,11 @@ export function serializeShape(state: ShapeState): ShapeFile {
   const lines = state.lines;
   const bb = boundingBox(lines);
   const center = {
-    x: (bb.min.x + bb.max.x) / 2,
-    y: (bb.min.y + bb.max.y) / 2,
+    x: Math.round((bb.min.x + bb.max.x) / 2),
+    y: Math.round((bb.min.y + bb.max.y) / 2),
   };
-  const size = { width: bb.max.x - bb.min.x, height: bb.max.y - bb.min.y };
+  const size = { width: Math.round(bb.max.x - bb.min.x), height: Math.round(bb.max.y - bb.min.y) };
+ 
   const area = shoelaceArea(lines, state.closed);
   return {
     version: 1,
@@ -45,15 +46,19 @@ export function serializeShape(state: ShapeState): ShapeFile {
     size,
     area,
     closed: state.closed,
-    lines: lines.map((ln) => ({
+    lines: lines.map((ln) => {
+      const end = {x: Math.round(ln.end.x),y: Math.round(ln.end.y)}
+      const start = {x: Math.round(ln.start.x),y: Math.round(ln.start.y)}
+      return {
       id: ln.id.toUpperCase(),
       type: ln.type,
       length: ln.length,
       angle: ln.angle,
-      start: ln.start,
-      end: ln.end,
-      middle: { x: (ln.start.x + ln.end.x) / 2, y: (ln.start.y + ln.end.y) / 2 },
-    })),
+      start: start,
+      end: end,
+      middle: { x: Math.round((ln.start.x + ln.end.x) / 2), y: Math.round((ln.start.y + ln.end.y) / 2) },
+    }
+  }),
   };
 }
 
