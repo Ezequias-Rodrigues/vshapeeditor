@@ -213,6 +213,14 @@ export function BlueprintCanvas({
       }
       if (e.button !== 0) return;
 
+      // ID marker hit-test (screen space) — works in any mode
+      for (const m of markersRef.current) {
+        if (sx >= m.x && sx <= m.x + m.w && sy >= m.y && sy <= m.y + m.h) {
+          store.dispatch({ type: "select", id: m.id });
+          return;
+        }
+      }
+
       const world = screenToWorld(sx, sy);
       const lines = store.state.lines;
       const v = viewRef.current;
