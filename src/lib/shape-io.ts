@@ -12,6 +12,7 @@ const LineSchema = z.object({
   angle: z.number().finite(),
   start: PointSchema,
   end: PointSchema,
+  middle: PointSchema.optional(),
 });
 
 const FileSchema = z.object({
