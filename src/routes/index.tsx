@@ -1,26 +1,417 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { BlueprintCanvas, type Mode } from "@/components/BlueprintCanvas";
+import { LINE_TYPES, type LineType, type Point } from "@/lib/shape-types";
+import { useShapeStore } from "@/lib/use-shape-store";
+import {
+  deserializeShape,
+  downloadJSON,
+  serializeShape,
+} from "@/lib/shape-io";
+import { boundingBox, shoelaceArea } from "@/lib/geometry";
 
-export const Route = createFileRoute("/")({
-  component: Index,
-});
+export const Route = createFileRoute("/")({ component: ShapeEditorPage });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
+function ShapeEditorPage() {
+  const store = useShapeStore();
+  const [mode, setMode] = useState<Mode>("place");
+  const [length, setLength] = useState(64);
+  const [lineType, setLineType] = useState<LineType>("M");
+  const [rotateDeg, setRotateDeg] = useState(15);
+  const [cursorInfo, setCursorInfo] = useState<{
+    world: Point;
+    angleSnap: number | null;
+    zoom: number;
+  } | null>(null);
+  const [fitTrigger, setFitTrigger] = useState(0);
+  const [resetTrigger, setResetTrigger] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const selected = useMemo(
+    () => store.state.lines.find((l) => l.id === store.state.selectedId) ?? null,
+    [store.state],
+  );
+
+  const stats = useMemo(() => {
+    const bb = boundingBox(store.state.lines);
+    const w = bb.max.x - bb.min.x;
+    const h = bb.max.y - bb.min.y;
+    const cx = (bb.min.x + bb.max.x) / 2;
+    const cy = (bb.min.y + bb.max.y) / 2;
+    return {
+      width: w,
+      height: h,
+      cx,
+      cy,
+      area: shoelaceArea(store.state.lines, store.state.closed),
+    };
+  }, [store.state]);
+
+  const onSave = useCallback(() => {
+    if (store.state.lines.length === 0) {
+      toast.error("Nothing to save");
+      return;
+    }
+    const data = serializeShape(store.state);
+    downloadJSON(`shape-${Date.now()}.json`, data);
+    toast.success("Shape exported");
+  }, [store.state]);
+
+  const onLoadClick = useCallback(() => fileInputRef.current?.click(), []);
+  const onLoadFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      try {
+        const json = JSON.parse(await file.text());
+        const next = deserializeShape(json);
+        store.dispatch({ type: "load", state: next });
+        toast.success(`Loaded ${next.lines.length} lines`);
+        setFitTrigger((n) => n + 1);
+      } catch (err) {
+        console.error(err);
+        toast.error("Invalid shape file");
+      }
+    },
+    [store],
+  );
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0e3a6b] text-white">
+      {/* Top toolbar */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/15 bg-[#0a2a52] px-3 py-2 text-xs">
+        <Group label="Mode">
+          <Toggle active={mode === "place"} onClick={() => setMode("place")}>
+            Place
+          </Toggle>
+          <Toggle active={mode === "edit"} onClick={() => setMode("edit")}>
+            Edit
+          </Toggle>
+        </Group>
+        <Group label="Length">
+          <NumInput value={length} onChange={setLength} min={1} step={1} width={70} />
+          <span className="opacity-60">px</span>
+        </Group>
+        <Group label="Type">
+          <Select value={lineType} onChange={(v) => setLineType(v as LineType)} options={LINE_TYPES} />
+        </Group>
+        <Btn
+          onClick={() => store.dispatch({ type: "closeShape", lineType })}
+          disabled={store.state.closed || store.state.lines.length < 2}
+        >
+          Close shape
+        </Btn>
+        {store.state.closed && (
+          <Btn onClick={() => store.dispatch({ type: "openShape" })}>Re-open</Btn>
+        )}
+        <Sep />
+        <Btn onClick={() => store.dispatch({ type: "undo" })} disabled={!store.canUndo}>
+          Undo
+        </Btn>
+        <Btn onClick={() => store.dispatch({ type: "redo" })} disabled={!store.canRedo}>
+          Redo
+        </Btn>
+        <Sep />
+        <Group label="Rotate">
+          <Btn onClick={() => store.dispatch({ type: "rotate", deg: -90 })}>−90°</Btn>
+          <Btn onClick={() => store.dispatch({ type: "rotate", deg: 90 })}>+90°</Btn>
+          <NumInput value={rotateDeg} onChange={setRotateDeg} step={1} width={56} />
+          <Btn onClick={() => store.dispatch({ type: "rotate", deg: rotateDeg })}>Apply</Btn>
+        </Group>
+        <Group label="Mirror">
+          <Btn onClick={() => store.dispatch({ type: "mirror", axis: "h" })}>H</Btn>
+          <Btn onClick={() => store.dispatch({ type: "mirror", axis: "v" })}>V</Btn>
+        </Group>
+        <Sep />
+        <Btn onClick={onSave}>Save JSON</Btn>
+        <Btn onClick={onLoadClick}>Load JSON</Btn>
+        <Btn
+          onClick={() => {
+            if (confirm("Discard current shape?")) {
+              store.dispatch({ type: "reset" });
+              setResetTrigger((n) => n + 1);
+            }
+          }}
+        >
+          New
+        </Btn>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={onLoadFile}
+        />
+      </div>
+
+      {/* Canvas + Sidebar */}
+      <div className="relative flex flex-1 overflow-hidden">
+        <div className="relative flex-1">
+          <BlueprintCanvas
+            store={store}
+            mode={mode}
+            length={length}
+            lineType={lineType}
+            onCursor={setCursorInfo}
+            fitTrigger={fitTrigger}
+            resetViewTrigger={resetTrigger}
+          />
+
+          {/* Floating zoom controls */}
+          <div className="absolute bottom-3 right-3 flex gap-1 rounded-md bg-[#0a2a52]/90 px-2 py-1 text-xs backdrop-blur">
+            <Btn onClick={() => setFitTrigger((n) => n + 1)}>Fit</Btn>
+            <Btn onClick={() => setResetTrigger((n) => n + 1)}>Reset view</Btn>
+          </div>
+
+          {/* Hint */}
+          <div className="pointer-events-none absolute left-3 top-3 max-w-[280px] rounded-md bg-[#0a2a52]/85 px-3 py-2 text-[11px] leading-relaxed text-white/85 backdrop-blur">
+            {mode === "place" ? (
+              <>
+                <div className="font-semibold">Place mode</div>
+                Move cursor → angle snaps to 15°. <b>Click</b> to place a line.
+                Scroll = zoom · Space/Middle-drag = pan.
+              </>
+            ) : (
+              <>
+                <div className="font-semibold">Edit mode</div>
+                Click a line to select. Drag any vertex to reshape (Shift = snap
+                15°). Delete key removes selected line.
+              </>
+            )}
+          </div>
+        </div>
+
+        {mode === "edit" && (
+          <aside className="w-72 shrink-0 overflow-y-auto border-l border-white/15 bg-[#0a2a52] p-3 text-xs">
+            <div className="mb-2 font-semibold uppercase tracking-wide text-white/70">
+              Selected line
+            </div>
+            {!selected ? (
+              <div className="text-white/60">
+                Click a line on the canvas to edit its properties.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Field label="ID">
+                  <code className="rounded bg-white/10 px-2 py-1">{selected.id}</code>
+                </Field>
+                <Field label="Type">
+                  <Select
+                    value={selected.type}
+                    onChange={(v) =>
+                      store.dispatch({
+                        type: "updateLine",
+                        id: selected.id,
+                        patch: { type: v as LineType },
+                      })
+                    }
+                    options={LINE_TYPES}
+                  />
+                </Field>
+                <Field label="Length (px)">
+                  <NumInput
+                    value={Number(selected.length.toFixed(3))}
+                    onChange={(v) =>
+                      store.dispatch({
+                        type: "updateLine",
+                        id: selected.id,
+                        patch: { length: Math.max(0, v) },
+                      })
+                    }
+                    step={1}
+                    width={120}
+                  />
+                </Field>
+                <Field label="Angle (°)">
+                  <NumInput
+                    value={Number(selected.angle.toFixed(3))}
+                    onChange={(v) =>
+                      store.dispatch({
+                        type: "updateLine",
+                        id: selected.id,
+                        patch: { angle: v },
+                      })
+                    }
+                    step={1}
+                    width={120}
+                  />
+                </Field>
+                <Field label="Start">
+                  <code className="text-white/70">
+                    {selected.start.x.toFixed(1)}, {selected.start.y.toFixed(1)}
+                  </code>
+                </Field>
+                <Field label="End">
+                  <code className="text-white/70">
+                    {selected.end.x.toFixed(1)}, {selected.end.y.toFixed(1)}
+                  </code>
+                </Field>
+                <button
+                  className="w-full rounded bg-red-500/80 px-3 py-1.5 font-medium hover:bg-red-500"
+                  onClick={() => store.dispatch({ type: "deleteSelected" })}
+                >
+                  Delete line
+                </button>
+              </div>
+            )}
+
+            <div className="mt-6 border-t border-white/15 pt-3 text-white/70">
+              <div className="font-semibold uppercase tracking-wide">Shape</div>
+              <div>Lines: {store.state.lines.length}</div>
+              <div>Closed: {store.state.closed ? "yes" : "no"}</div>
+              <div>
+                Size: {stats.width.toFixed(1)} × {stats.height.toFixed(1)}
+              </div>
+              <div>
+                Center: {stats.cx.toFixed(1)}, {stats.cy.toFixed(1)}
+              </div>
+              <div>Area: {stats.area.toFixed(1)}</div>
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* Status bar */}
+      <div className="flex items-center gap-4 border-t border-white/15 bg-[#0a2a52] px-3 py-1 font-mono text-[11px] text-white/80">
+        <span>
+          cursor:{" "}
+          {cursorInfo
+            ? `${cursorInfo.world.x.toFixed(1)}, ${cursorInfo.world.y.toFixed(1)}`
+            : "—"}
+        </span>
+        <span>zoom: {((cursorInfo?.zoom ?? 1) * 100).toFixed(0)}%</span>
+        {cursorInfo?.angleSnap != null && <span>snap: {cursorInfo.angleSnap}°</span>}
+        <span>lines: {store.state.lines.length}</span>
+        <span>{store.state.closed ? "closed" : "open"}</span>
+        <span className="ml-auto opacity-60">
+          Ctrl+Z undo · Ctrl+Shift+Z redo · Space pan · Wheel zoom
+        </span>
+      </div>
+
+      <Toaster />
     </div>
   );
 }
 
-function Index() {
-  return <PlaceholderIndex />;
+// ---------- tiny UI primitives (kept local; styled to match blueprint) ----------
+
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-md bg-white/5 px-2 py-1">
+      <span className="text-[10px] uppercase tracking-wide text-white/60">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Sep() {
+  return <div className="mx-1 h-5 w-px bg-white/15" />;
+}
+
+function Btn({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Toggle({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded px-2 py-1 ${
+        active ? "bg-amber-300 text-[#0a2a52]" : "bg-white/10 hover:bg-white/20"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function NumInput({
+  value,
+  onChange,
+  min,
+  step = 1,
+  width = 80,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  step?: number;
+  width?: number;
+}) {
+  return (
+    <input
+      type="number"
+      value={Number.isFinite(value) ? value : 0}
+      min={min}
+      step={step}
+      onChange={(e) => {
+        const n = parseFloat(e.target.value);
+        if (Number.isFinite(n)) onChange(n);
+      }}
+      style={{ width }}
+      className="rounded bg-white/10 px-1.5 py-0.5 text-white outline-none focus:bg-white/20"
+    />
+  );
+}
+
+function Select({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded bg-white/10 px-1.5 py-0.5 text-white outline-none focus:bg-white/20"
+    >
+      {options.map((o) => (
+        <option key={o} value={o} className="bg-[#0a2a52]">
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[10px] uppercase tracking-wide text-white/60">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
 }
